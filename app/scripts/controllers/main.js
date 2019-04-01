@@ -34,7 +34,9 @@ angular.module('tcpFrontendApp')
 
     //-----Terminal Settings
 
-    _self.echo = (msg) => _self.term.echo(prompt+' '+msg);
+    _self.echo = function(msg){ 
+      _self.term.echo(prompt+' '+msg);
+    }
 
     _self.onCommand = function (command) {
       if (command !== '') {
