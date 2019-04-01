@@ -6,20 +6,21 @@
  * Controller of the tcpFrontendApp
  */
 
-var PayloadTypes = {
-  'CONNECTION_STATUS': 'CONNECTION_STATUS',
-  'MESSAGE': 'MESSAGE',
-  'COUNT_UPDATE': 'COUNT_UPDATE'
-}
-
-var directionTypes = { 
-  "INCREASE": "+",
-  "DECREASE": "-"
-};
 
 angular.module('tcpFrontendApp')
   .controller('MainCtrl', function ($timeout, $websocket, $scope) {
     var _self = this;
+
+    var PayloadTypes = {
+      'CONNECTION_STATUS': 'CONNECTION_STATUS',
+      'MESSAGE': 'MESSAGE',
+      'COUNT_UPDATE': 'COUNT_UPDATE'
+    }
+    
+    var directionTypes = { 
+      "INCREASE": "+",
+      "DECREASE": "-"
+    };
 
     _self.state = {
       count: 0,
