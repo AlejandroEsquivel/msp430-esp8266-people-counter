@@ -27,10 +27,10 @@ angular.module('tcpFrontendApp')
       tcpConnection: false
     }
 
-    var WS_HOST = 3200;
+    var WS_HOST = 'ws://tcp.alejandroesquivel.com:3200';
     var prompt = 'socket>';
 
-    var ws = $websocket('ws://localhost:'+WS_HOST,null, { reconnectIfNotNormalClose: true });
+    var ws = $websocket(WS_HOST,null, { reconnectIfNotNormalClose: true });
     var wsRetry; 
 
     //-----Terminal Settings
@@ -101,13 +101,6 @@ angular.module('tcpFrontendApp')
         console.log('Recieved ws payload', payload);
       });
     })
-
-    ws.onClose(function(){
-      /*wsRetry = setInterval(function(){
-        console.log('Finding new connection')
-        ws = $websocket(`ws://localhost:${WS_HOST}`,null, { reconnectIfNotNormalClose: true });
-      },1000)*/
-    });
 
     //--- END Websocket Handlers
 
