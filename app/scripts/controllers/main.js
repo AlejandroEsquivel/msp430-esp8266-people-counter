@@ -29,8 +29,8 @@ angular.module('tcpFrontendApp')
     const WS_HOST = 3200;
     const prompt = 'socket>';
 
-    let ws = $websocket(`ws://localhost:${WS_HOST}`,null, { reconnectIfNotNormalClose: true });
-    let wsRetry; 
+    var ws = $websocket(`ws://localhost:${WS_HOST}`,null, { reconnectIfNotNormalClose: true });
+    var wsRetry; 
 
     //-----Terminal Settings
 
