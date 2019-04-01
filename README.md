@@ -1,12 +1,2 @@
-# tcp-frontend
-
-This project is generated with [yo angular generator](https://github.com/yeoman/generator-angular)
-version 0.16.0.
-
-## Build & development
-
-Run `grunt` for building and `grunt serve` for preview.
-
-## Testing
-
-Running `grunt test` will run the unit tests with karma.
+# msp430-esp8266-people-counter
+A wi-fi connected people counter. Implemented with a pair of ultrasonic transducers, the TI MSP430G2553 microcontroller and the ESP8266 ESP-01 Wi-Fi module. 
