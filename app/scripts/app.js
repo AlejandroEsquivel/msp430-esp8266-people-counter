@@ -13,7 +13,8 @@ angular
     'ngCookies',
     'ngRoute',
     'angular-websocket',
-    'chart.js'
+    'chart.js',
+    'config'
   ])
   .config(function ($routeProvider) {
     $routeProvider

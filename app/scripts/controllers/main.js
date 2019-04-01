@@ -8,7 +8,7 @@
 
 
 angular.module('tcpFrontendApp')
-  .controller('MainCtrl', function ($timeout, $websocket, $scope) {
+  .controller('MainCtrl', function ($timeout, $websocket, $scope, config) {
     var _self = this;
 
     var PayloadTypes = {
@@ -27,10 +27,9 @@ angular.module('tcpFrontendApp')
       tcpConnection: false
     }
 
-    var WS_HOST = 'ws://tcp.alejandroesquivel.com:3200';
     var prompt = 'socket>';
 
-    var ws = $websocket(WS_HOST,null, { reconnectIfNotNormalClose: true });
+    var ws = $websocket(config.WS_HOST,null, { reconnectIfNotNormalClose: true });
     var wsRetry; 
 
     //-----Terminal Settings
