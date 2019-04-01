@@ -11,7 +11,9 @@ const WebSocket = require('ws');
 const TCP_PORT = 3100;
 const WS_PORT = 3200;
 
-const server = new Net.Server();
+const server = new Net.Server({
+    allowHalfOpen: true
+});
 const wss = new WebSocket.Server({ port: WS_PORT });
 
 const ConnectionStatus = {
