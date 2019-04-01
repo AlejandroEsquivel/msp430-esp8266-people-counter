@@ -1,0 +1,54 @@
+<div style="height: 70px; background-color:#0288c4; color: white" class="container-fluid">
+  <div class="row">
+    <div class="col-md-1"></div>
+    <div class="col-md-10">
+      <div style="line-height:70px; font-size: 20px;">
+        <span style="font-size:40px; top:15px; margin-right: 5px;" class="glyphicon glyphicon-cloud"></span>
+        <span style="font-weight:200">Wi-Fi People Counter</span></div>
+    </div>
+    <div class="col-md-1"></div>
+  </div>
+</div>
+<div style="height:200px; background-color: #333; color:white; text-align: center; padding-top:30px;" class="container-fluid">
+  <div class="row">
+    <div class="col-md-2"></div>
+    <div class="col-md-8">
+      <h2>{{ main.state.tcpConnection ? 'Connected': 'Disconnected' }}</h2>
+      <span ng-if="main.state.tcpConnection" class="glyphicon glyphicon-ok-circle" style="font-size:40px; color: #4CAF50"></span>
+      <span ng-if="!main.state.tcpConnection" class="glyphicon glyphicon-remove-circle" style="font-size:40px; color: #cb0000"></span>
+    </div>
+    <div class="col-md-2"></div>
+  </div>
+</div>
+<div style="width: 75%; margin-left: auto; margin-right: auto; position: relative; top:-30px; background-color: white; min-height: 400px; padding:45px;" class="shadow-lg">
+  <div class="container-fluid">
+    <div class="row">
+      <div class="col-lg-4">
+        <div style="float:left; text-align: center">
+          <h3>People Count</h3>
+          <span style="font-size:70px; display: inline-block;">{{ main.state.count }}</span>
+          <br/>
+          <button type="button" class="btn btn-secondary" style="width:100%; background-color: #eaeaea" ng-click="main.reset()">Reset</button>
+
+
+        </div>
+      </div>
+      <div class="col-lg-8">
+        <canvas id="line" class="chart chart-line" chart-data="data"
+          chart-labels="labels" chart-series="series" chart-options="options" chart-click="onClick">
+        </canvas>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div style="width: 75%; margin-left: auto; margin-right: auto; margin-bottom: 50px; min-height: 400px;" class="shadow-md">
+  <div id="jsterm" style="height:400px"></div>
+</div>
+
+
+<div id="footer" style="text-align:center">
+  <span>Made with <span style="color: #333;">&#9829;</span> for UBC PHYS319</span>
+</div>
+
+<br/>

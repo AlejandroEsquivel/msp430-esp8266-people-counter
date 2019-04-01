@@ -1,0 +1,31 @@
+{
+  "name": "tcp-frontend",
+  "version": "0.0.0",
+  "dependencies": {
+    "angular": "~1.7.8",
+    "bootstrap": "^3.2.0",
+    "angular-cookies": "^1.4.0",
+    "angular-route": "^1.4.0",
+    "jquery.terminal": "^2.2.0",
+    "angular-websocket": "^2.0.0",
+    "chart.js": "^2.8.0",
+    "moment": "^2.24.0"
+  },
+  "devDependencies": {
+    "angular-mocks": "^1.4.0"
+  },
+  "appPath": "app",
+  "moduleName": "tcpFrontendApp",
+  "overrides": {
+    "bootstrap": {
+      "main": [
+        "less/bootstrap.less",
+        "dist/css/bootstrap.css",
+        "dist/js/bootstrap.js"
+      ]
+    }
+  },
+  "resolutions": {
+    "angular": "1.7.8"
+  }
+}
