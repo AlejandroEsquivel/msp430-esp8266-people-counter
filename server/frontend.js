@@ -5,10 +5,7 @@ const app = express();
 
 const PORT = 8080;
 
-const dir = `${appRoot}/dist`;
 
-app.use(express.static(dir));
+app.use(express.static(`${appRoot}/dist`));
 
-app.get('/',(req,res)=>res.status(200).send('ok'));
-
-app.listen(PORT,()=>console.log(`Listening on port ${PORT}, serving ${dir}...`));
+app.listen(PORT,()=>console.log(`Listening on port ${PORT}`));
