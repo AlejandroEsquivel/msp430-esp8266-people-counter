@@ -58,7 +58,7 @@ angular.module('tcpFrontendApp')
       greetings: 'ESP8266 TCP-to-Websocket Data\n',
       name: 'js_demo',
       height: 400,
-      prompt
+      prompt: prompt
     });
 
     //-----END Terminal Settings
