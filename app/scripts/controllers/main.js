@@ -6,13 +6,13 @@
  * Controller of the tcpFrontendApp
  */
 
-const PayloadTypes = {
+var PayloadTypes = {
   'CONNECTION_STATUS': 'CONNECTION_STATUS',
   'MESSAGE': 'MESSAGE',
   'COUNT_UPDATE': 'COUNT_UPDATE'
 }
 
-const directionTypes = { 
+var directionTypes = { 
   "INCREASE": "+",
   "DECREASE": "-"
 };
@@ -26,8 +26,8 @@ angular.module('tcpFrontendApp')
       tcpConnection: false
     }
 
-    const WS_HOST = 3200;
-    const prompt = 'socket>';
+    var WS_HOST = 3200;
+    var prompt = 'socket>';
 
     var ws = $websocket('ws://localhost:'+WS_HOST,null, { reconnectIfNotNormalClose: true });
     var wsRetry; 
@@ -62,12 +62,12 @@ angular.module('tcpFrontendApp')
 
     //-----Websocket Handlers
 
-    ws.onOpen (()=>{
+    ws.onOpen (function(){
       
     wsRetry && clearInterval(wsRetry);
       
-      ws.onMessage((buf)=>{
-        const payload = JSON.parse(buf.data);
+      ws.onMessage(function(buf){
+        var payload = JSON.parse(buf.data);
 
 
         switch(payload.type){
@@ -75,7 +75,7 @@ angular.module('tcpFrontendApp')
             _self.echo(payload.message);
           break;
           case PayloadTypes.CONNECTION_STATUS: 
-            const prevState = _self.state.tcpConnection;
+            var prevState = _self.state.tcpConnection;
             _self.state.tcpConnection = payload.data.tcp > 0;
 
             if(_self.state.tcpConnection){
@@ -99,7 +99,7 @@ angular.module('tcpFrontendApp')
       });
     })
 
-    ws.onClose(()=>{
+    ws.onClose(function(){
       /*wsRetry = setInterval(function(){
         console.log('Finding new connection')
         ws = $websocket(`ws://localhost:${WS_HOST}`,null, { reconnectIfNotNormalClose: true });
@@ -108,7 +108,7 @@ angular.module('tcpFrontendApp')
 
     //--- END Websocket Handlers
 
-    _self.onRecieveCounterUpdate = (dir)=>{
+    _self.onRecieveCounterUpdate = function(dir){
       if(dir === directionTypes.INCREASE){
 
         _self.state.count++;
@@ -123,10 +123,12 @@ angular.module('tcpFrontendApp')
 
     //--- Plot configuration
 
-    const assignX = ()=> moment().format('hh:mm:ss a');
+    var assignX = function(){
+      return moment().format('hh:mm:ss a');
+    }
 
-    _self.appendToData = (el)=>{
-      const size = $scope.data[0].length;
+    _self.appendToData = function(el){
+      var size = $scope.data[0].length;
       if(size <= 10){
         $scope.data[0].push(el);
         _self.appendToLabels();
@@ -139,7 +141,7 @@ angular.module('tcpFrontendApp')
       }
     }
     
-    _self.appendToLabels = ()=>{
+    _self.appendToLabels = function(){
       $scope.labels.push(assignX());
     }
 
@@ -147,7 +149,7 @@ angular.module('tcpFrontendApp')
     $scope.labels = [assignX()];
     $scope.series = ['Telemetry Events'];
 
-    _self.reset = ()=>{
+    _self.reset = function(){
       $scope.data = [[0]];
       $scope.labels = [assignX()];
       _self.state.count = 0;
