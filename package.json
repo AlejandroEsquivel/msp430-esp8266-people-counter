@@ -40,6 +40,7 @@
     "node": ">=0.10.0"
   },
   "dependencies": {
+    "app-root-path": "^2.2.1",
     "express": "^4.16.4",
     "ws": "^6.2.1"
   }
