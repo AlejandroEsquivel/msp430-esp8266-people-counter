@@ -15,8 +15,9 @@
 #define RED_LED BIT0   // P1.0 LED
 #define GREEN_LED BIT6 // P1.6 LED
 
-#define WIFI_NETWORK_SSID "AE iPhone" // Rowan_IOT network
-#define WIFI_NETWORK_PASS "guestpass" // No password for this network
+#define WIFI_NETWORK_SSID "AE iPhone" 
+#define WIFI_NETWORK_PASS "guestpass" 
+
 #define TCP_SERVER "tcp.alejandroesquivel.com"
 #define TCP_PORT "3100"
 
