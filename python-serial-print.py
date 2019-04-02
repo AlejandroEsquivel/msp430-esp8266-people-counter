@@ -11,7 +11,7 @@ port = "/dev/ttyACM0"  #for Linux
 #start our program proper:
 #open the serial port
 try:
-    ser = serial.Serial(port,115200,timeout = 1) 
+    ser = serial.Serial(port,9600,timeout = 1) 
 # with timeout=0, read returns immediately, even if no data
 except:
     print ("Opening serial port",port,"failed")
@@ -27,3 +27,6 @@ while(1): #loop forever
     data = ser.readline() # look for a character from serial port - will wait for up to 50ms (specified above in timeout)
     if len(data) > 0: #was there a byte to read?
         print data
+        #val = float(data)/10000;
+        #if(val >0):
+        #    print val;
