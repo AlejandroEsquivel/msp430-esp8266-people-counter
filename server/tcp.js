@@ -36,34 +36,30 @@ let state = {
 
 let websocket = {
     isAlive: false,
-    connection: null,
+    connections: [],
     queue: [],
     send: payload => {
-        if(websocket.connection !== null) {
+        let inactiveConnections = [];
+        if(websocket.connections.length) {
             
-            try {
-                websocket.flush();
-                websocket.connection.send(JSON.stringify(payload)); 
-            }
-            catch(e){
-                console.warn('Websocket connection not available.')
-            }
+            websocket.connections.forEach((connection,i)=>{
+                try {
+                    connection.send(JSON.stringify(payload)); 
+                }
+                catch(e){
+                    console.warn(`Websocket connection ${i} not available.`);
+                    inactiveConnections.push(i);
+                }
+            })
+
+            inactiveConnections.forEach(i => websocket.connections.splice(i,1));
             
-        }
-        else {
-            websocket.queue.push(payload);
         }
     },
     message: (message) => websocket.send({
         type: PayloadTypes.MESSAGE,
         message
-    }),
-    flush: () => {
-        const size = websocket.queue.length;
-        for(var i=0;i<size;i++){
-            websocket.connection.send(JSON.stringify(websocket.queue.pop()));
-        }
-    },    
+    })
 }
 
 const sendConnectionStatus = () => {
@@ -103,15 +99,18 @@ const onTCPConnection = (status)=>{
 
 
 wss.on('connection', function wsConnection(ws) {  
-    websocket.connection = ws;
+    console.log(`Established websocket connection ${websocket.connections.length}`)
+    websocket.connections.push(ws);
     sendConnectionStatus();
 });
 
 server.on('connection', function tcpConnection(socket) {
+    
     onTCPConnection(ConnectionStatus.START);
+
     socket.on('data', onData);
     socket.on('end', ()=> onTCPConnection(ConnectionStatus.END));
     socket.on('error', err => console.log(`Error: ${err}`));
 });
 
-server.listen(TCP_PORT, ()=> console.log(`Server listening for connection requests on socket localhost:${TCP_PORT}\n`));
+server.listen(TCP_PORT, ()=> console.log(`Server listening for tcp connection requests @ localhost:${TCP_PORT}\n`));
