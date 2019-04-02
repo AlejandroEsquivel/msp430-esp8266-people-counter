@@ -79,6 +79,8 @@ const onData = (chunk) => {
         type: PayloadTypes.COUNT_UPDATE,
         data
     });
+
+    console.log(`Recieved on tcp socket: ${data}`);
 }
 
 //-------- Main Handler
@@ -105,7 +107,7 @@ wss.on('connection', function wsConnection(ws) {
 });
 
 server.on('connection', function tcpConnection(socket) {
-    
+
     onTCPConnection(ConnectionStatus.START);
 
     socket.on('data', onData);
