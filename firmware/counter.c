@@ -6,16 +6,22 @@
 #define TXD BIT2 // TXD on P1.2 (RX of ESP)
 #define RXD BIT1 // RXD on P1.1 (TX of ESP)
 
-#define RED_LED BIT0 // P1.0 LED
+#define ECHO_1 BIT0 // P2.0
+#define TRIG_1 BIT1 // P2.1
+
+#define ECHO_2 BIT5 // P2.5
+#define TRIG_2 BIT4 // P2.4
+
+#define RED_LED BIT0   // P1.0 LED
 #define GREEN_LED BIT6 // P1.6 LED
 
-#define WIFI_NETWORK_SSID	"AE iPhone" // Rowan_IOT network
-#define WIFI_NETWORK_PASS	"guestpass" // No password for this network
+#define WIFI_NETWORK_SSID "AE iPhone" 
+#define WIFI_NETWORK_PASS "guestpass" 
 
-volatile unsigned long start_time;
-volatile unsigned long end_time;
-volatile unsigned long delta_time;
-volatile unsigned long distance;
+#define TCP_SERVER "tcp.alejandroesquivel.com"
+#define TCP_PORT "3100"
+
+volatile unsigned int timer_reset_count = 0;
 
 void wait_ms(unsigned int ms)
 {
@@ -27,11 +33,17 @@ void wait_ms(unsigned int ms)
   }
 }
 
+void wait_s(float s)
+{
+  wait_ms((int)(s*1000));
+}
+
+
+
 /* Write byte to USB-Serial interface */
 void write_uart_byte(char value)
 {
-  while (!(IFG2 & UCA0TXIFG))
-    ;
+  while (!(IFG2 & UCA0TXIFG));
   // wait for TX buffer to be ready for new data
   // UCA0TXIFG register will be truthy when available to recieve new data to computer.
   UCA0TXBUF = value;
@@ -47,36 +59,36 @@ void write_uart_string(char *str)
   }
 }
 
-void put(const unsigned c){
-  while (!(IFG2 & UCA0TXIFG))
-    ;
-  // wait for TX buffer to be ready for new data
-  // UCA0TXIFG register will be truthy when available to recieve new data to computer.
-  UCA0TXBUF = c;
+void write_uart_int(unsigned int i){
+  char buf[sizeof(i) * 8 + 1];
+  sprintf(buf, "%d\n", i);
+  write_uart_string(buf);
 }
 
-void TX(char *s){
-  while (*s) put(*s++);
-}
-
-void crlf(void)
+void write_uart_long(unsigned long l)
 {
-  TX("/r/n");
+  char buf[sizeof(l) * 8 + 1];
+  sprintf(buf, "%ld\n", l);
+  write_uart_string(buf);
 }
 
 
-#if defined(__TI_COMPILER_VERSION__)
-#pragma vector = USCI0RX_ISR
-__interrupt void ta1_isr(void)
-#else
-void __attribute__((interrupt(USCI0RX_ISR))) rx_isr(void)
-#endif
+void tx_end(float delay){
+  write_uart_string("\r\n");
+  wait_s(delay);
+}
+
+void tx(char *str, float delay)
 {
-  
+  write_uart_string(str);
+  tx_end(delay);
+}
+
+void tx_partial(char *str){
+  write_uart_string(str);
 }
 
 
-/*
 #if defined(__TI_COMPILER_VERSION__)
 #pragma vector = TIMER0_A0_VECTOR
 __interrupt void ta1_isr(void)
@@ -88,6 +100,7 @@ void __attribute__((interrupt(TIMER0_A0_VECTOR))) ta1_isr(void)
   {
     //Timer overflow
     case 10:
+      timer_reset_count++;
     break;
     //Otherwise Capture Interrupt
     default:
@@ -96,8 +109,6 @@ void __attribute__((interrupt(TIMER0_A0_VECTOR))) ta1_isr(void)
   }
   TACTL &= ~CCIFG; // reset the interrupt flag
 }
-*/
-
 
 
 /* Setup UART */
@@ -106,9 +117,6 @@ void init_uart(void)
   // Set TXD, and RXD
   P1SEL |= TXD + RXD;
   P1SEL2 |= TXD + RXD;
-
-  // For Baud rate: 115200, and BRCLK frequency of 1MHz (SMLCK)
-  // We require ( UCBRx = 8, UCBRSx = 6, UCBRFx = 0) 
 
   // Use SMCLK - 1MHz clock
   UCA0CTL1 |= UCSSEL_2;
@@ -124,9 +132,9 @@ void init_timer(void)
 {
   DCOCTL = 0;
   /* Use internal calibrated 1MHz clock: */
-  BCSCTL1 = CALBC1_1MHZ; // Set range (y)
-  DCOCTL = CALDCO_1MHZ; // (y)
-  BCSCTL2 &= ~(DIVS_3); // SMCLK = DCO = 1MHz (x - not used)
+  BCSCTL1 = CALBC1_1MHZ; 
+  DCOCTL = CALDCO_1MHZ;  
+  BCSCTL2 &= ~(DIVS_3);
 
   // Stop timer before modifiying configuration
   TACTL = MC_0;
@@ -145,49 +153,226 @@ void init_timer(void)
 
 void reset_timer(void)
 {
-  //Clear timer 
+  //Clear timer
   TACTL |= TACLR;
 }
 
-void main(void) {
-  // Stop Watch Dog Timer
-  WDTCTL = WDTPW + WDTHOLD; 
+void esp_flash_config() {
+  //  Flash Wifi-Mode: As client
+  tx("AT+CWMODE_DEF=1",2); 
+  // Flash ssid credentials
+  tx_partial("AT+CWJAP_DEF=\"");
+  tx_partial(WIFI_NETWORK_SSID);
+  tx_partial("\",\"");
+  tx_partial(WIFI_NETWORK_PASS);
+  tx_partial("\"");
+  tx_end(20);
+}
 
-  // Enable LEDs, reset pins output vals
-  P2DIR = 0xFF;
+void esp_runtime_config(void) {
+  tx("ATE0",1); // Disable echo
+  tx("AT+CIPMUX=0",1); // Single-Connection Mode
+}
+
+void tcp_connect(void){
+   tx_partial("AT+CIPSTART=\"TCP\",\"");  // Establish TCP connection
+   tx_partial(TCP_SERVER);
+   tx_partial("\",");
+   tx_partial(TCP_PORT);
+   tx_end(10);
+}
+
+
+void send_measurement(char* data) {
+  tx("AT+CIPSEND=1",1); // prepare to send x byte
+  tx(data,0);
+}
+
+unsigned long ultrasonic_measurement(int ECHO_PIN, int TRIG_PIN){
+
+  // Enable ultrasound pulses
+  P2OUT |= TRIG_PIN;  
+  // Send pulse for 10us
+  __delay_cycles(10); 
+  // Disable TRIGGER
+  P2OUT &= ~TRIG_PIN; 
+
+  unsigned int prev_echo_val = 0;
+  unsigned int curr_echo_val;
+
+  unsigned long start_time;
+  unsigned long end_time;
+  unsigned long distance;
+
+  while (1)
+    {
+      curr_echo_val = P2IN & ECHO_PIN;
+      // Rising edge
+      if (curr_echo_val > prev_echo_val)
+      {
+        reset_timer();
+        timer_reset_count = 0;
+        start_time = TAR;
+      }
+      // Falling edge
+      else if (curr_echo_val < prev_echo_val)
+      {
+        end_time = TAR + (timer_reset_count * 0xFFFF);
+        distance = (unsigned long)((end_time - start_time) / 0.00583090379);
+
+        //only accept values within HC-SR04 acceptible measure ranges
+        if (distance / 10000 >= 2.0 && distance / 10000 <= 400)
+        {
+          return distance;
+        }
+        else {
+          return -1;
+        }
+      }
+      prev_echo_val = curr_echo_val;
+    }
+}
+
+void main(void)
+{
+  // Stop Watch Dog Timer
+  WDTCTL = WDTPW + WDTHOLD;
+
   P1OUT = 0;
   P2OUT = 0;
+
+  // Enable LEDs, TRIC/ECHO pins
+  P2DIR |= TRIG_1 + TRIG_2;
+  P2DIR &= ~(ECHO_1 + ECHO_2);
   P1DIR |= RED_LED + GREEN_LED;
 
   init_timer();
   init_uart();
-  
 
   // Global Interrupt Enable
   __enable_interrupt();
-  
+
   IE2 &= ~UCA0RXIE; // Disable UART RX interrupt before we send data
 
   wait_ms(500);
-  P1OUT|=RED_LED;
 
-  TX("AT+RST");
-  crlf();
-	wait_ms(20000);	// Delay
-	TX("AT+CWMODE_DEF=1");	    // Set mode to client (save to flash)
-	// Modem-sleep mode is the default sleep mode for CWMODE = 1
-	// ESP8266 will automatically sleep and go into "low-power" (15mA average) when idle
-	crlf();	
-	wait_ms(20000);	// Delay
-	TX("AT+CWJAP_DEF=\"");      // Assign network settings (save to flash)
-	TX(WIFI_NETWORK_SSID);
-	TX("\",\"");
-	TX(WIFI_NETWORK_PASS);	    // Connect to WiFi network
-	TX("\"");
-	crlf();
-  // Delay, wait for ESP8266 to fetch IP and connect
-  P1OUT|=GREEN_LED;
-  while(1){
-    __delay_cycles(50000);
+  P1OUT |= RED_LED;
+
+  // need to run only once
+  //esp_flash_config();
+
+  //esp_runtime_config();
+  //tcp_connect();
+
+  //sendMeasurement("!");
+
+  P1OUT |= GREEN_LED;
+
+  unsigned long d1;
+  unsigned long d2;
+
+  unsigned long now;
+
+  unsigned int threshold = 40;
+
+  unsigned int counter_1 = 0;
+  unsigned int counter_2 = 0;
+
+  unsigned long people_measure_start = 0;
+  unsigned long last_count_taken = 0;
+
+  unsigned int allow_double_measurement = 0;
+
+  unsigned int previous_count = 0;
+  unsigned int count = 0;
+
+  unsigned long people = 0;
+
+  while (1)
+  {
+    d1 = ultrasonic_measurement(ECHO_1, TRIG_1);
+    d2 = ultrasonic_measurement(ECHO_2, TRIG_2);
+
+    now = TAR / 1000; //miliseconds
+
+  
+    if (allow_double_measurement == 1 || (d1 > threshold || d2 > threshold))
+    {
+
+      if (counter_1 == 0 && d1 <= threshold)
+      {
+        counter_1 = 1;
+        last_count_taken = now;
+        allow_double_measurement = 1;
+        if (counter_2 == 1)
+        {
+          allow_double_measurement = 0;
+          people_measure_start = now;
+          count--;
+        }
+      }
+
+      if (counter_2 == 0 && d2 <= threshold)
+      {
+        counter_2 = 1;
+        last_count_taken = now;
+        allow_double_measurement = 1;
+        //raising edge
+        if (counter_1 == 1)
+        {
+          allow_double_measurement = 0;
+          people_measure_start = now;
+          count++;
+        }
+      }
+    }
+
+    //edge case where one sensor triggered, but second one not triggered
+    if (now - last_count_taken > 1000) {
+      last_count_taken = now;
+      counter_1 = 0;
+      counter_2 = 0;
+    }
+
+    if (counter_2 == 1 && counter_1 == 1 && now - people_measure_start >= 250)
+    {
+
+      people_measure_start = 0;
+
+      if (count > previous_count)
+      {
+        people++;
+        //send_measurement("+");
+      }
+      else if (count < previous_count)
+      {
+        people--;
+        //send_measurement("-");
+      }
+
+      if (people < 0)
+      {
+        people = 0;
+      }
+
+      previous_count = count;
+
+      write_uart_string("people: ");
+      write_uart_long(people);
+
+      /*Serial.print("People: ");
+      Serial.print(people);
+      Serial.print("\n");
+      Serial.print("Count: ");
+      Serial.print(count);
+      Serial.print("\n");*/
+
+      people_measure_start = now;
+
+      counter_1 = 0;
+      counter_2 = 0;
+    }
+  
+    wait_ms(50);
   }
 }
