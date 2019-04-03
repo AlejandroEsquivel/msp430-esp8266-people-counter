@@ -22,6 +22,8 @@ angular.module('tcpFrontendApp')
       "DECREASE": "-"
     };
 
+    var MAX_DATASET_SIZE = 20;
+
     _self.state = {
       count: 0,
       tcpConnection: false
@@ -54,7 +56,7 @@ angular.module('tcpFrontendApp')
     };
 
     _self.term = $('#jsterm').terminal(_self.onCommand, {
-      greetings: 'ESP8266 TCP-to-Websocket Data\n',
+      greetings: 'ESP8266 TCP Connection Console\n',
       name: 'js_demo',
       height: 400,
       prompt: prompt
@@ -124,7 +126,7 @@ angular.module('tcpFrontendApp')
 
     _self.appendToData = function(el){
       var size = $scope.data[0].length;
-      if(size <= 10){
+      if(size <= MAX_DATASET_SIZE){
         $scope.data[0].push(el);
         _self.appendToLabels();
       }
