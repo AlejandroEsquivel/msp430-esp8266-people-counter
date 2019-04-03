@@ -333,7 +333,7 @@ void main(void)
 
 
       //timeout of weird state
-      if ( millis() >= 50000)
+      if ( millis() >= 15000)
       {
         reset_timer();
         timer_reset_count = 0;
@@ -344,6 +344,7 @@ void main(void)
         prev_state = state;
         state = 0;
       }
+      
       /*
       switch (state)
       {
