@@ -243,31 +243,6 @@ unsigned long ultrasonic_measurement(int ECHO_PIN, int TRIG_PIN)
 }
 
 
-void blah(void)
-{
-  P1OUT |= RED_LED;
-
-  if (prev_people < people)
-  {
-    send_measurement("+");
-  }
-  else if (prev_people > people)
-  {
-    send_measurement("-");
-  }
-
-  counter_1 = 0;
-  counter_2 = 0;
-  prev_state = state;
-  state = 0;
-  prev_people = people;
-
-  reset_timer();
-  timer_reset_count = 0;
-  last_measurement_taken = millis();
-}
-
-
 void main(void)
 {
   // Stop Watch Dog Timer
@@ -415,6 +390,7 @@ void main(void)
       people = 0;
       
       reset_timer();
+      timer_reset_count = 0;
       last_measurement_taken = millis();
     }
   }
