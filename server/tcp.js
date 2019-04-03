@@ -115,4 +115,8 @@ server.on('connection', function tcpConnection(socket) {
     socket.on('error', err => console.log(`Error: ${err}`));
 });
 
+server.on('error', function tcpConnectionError(e){
+    console.error(e);
+})
+
 server.listen(TCP_PORT, ()=> console.log(`Server listening for tcp connection requests @ localhost:${TCP_PORT}\n`));
