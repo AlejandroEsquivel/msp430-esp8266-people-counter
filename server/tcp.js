@@ -10,6 +10,7 @@ const WebSocket = require('ws');
 
 const TCP_PORT = 3100;
 const WS_PORT = 3200;
+const TCP_CONNECTION_TIMEOUT = 1000*60*30; // 30 minutes
 
 const server = new Net.Server();
 const wss = new WebSocket.Server({ port: WS_PORT });
@@ -107,6 +108,8 @@ wss.on('connection', function wsConnection(ws) {
 });
 
 server.on('connection', function tcpConnection(socket) {
+
+    socket.setTimeout(TCP_CONNECTION_TIMEOUT);
 
     onTCPConnection(ConnectionStatus.START);
 
