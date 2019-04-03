@@ -11,9 +11,7 @@ const WebSocket = require('ws');
 const TCP_PORT = 3100;
 const WS_PORT = 3200;
 
-const server = new Net.Server({
-    allowHalfOpen: true
-});
+const server = new Net.Server();
 const wss = new WebSocket.Server({ port: WS_PORT });
 
 const ConnectionStatus = {
@@ -79,6 +77,8 @@ const onData = (chunk) => {
         type: PayloadTypes.COUNT_UPDATE,
         data
     });
+
+    console.log(`Recieved on tcp socket: ${data}`);
 }
 
 //-------- Main Handler
@@ -88,10 +88,12 @@ const onTCPConnection = (status)=>{
     if(status===ConnectionStatus.START){
         state.connections.tcp++;
         websocket.message('A new connection has been established.');
+        console.log('A new tcp connection has been established');
     }
     else if(status===ConnectionStatus.END){
         state.connections.tcp--;
        websocket.message('Closing connection with the client.');
+       console.log('Closing tcp connection with the client.');
     }
 
     sendConnectionStatus();
@@ -105,12 +107,16 @@ wss.on('connection', function wsConnection(ws) {
 });
 
 server.on('connection', function tcpConnection(socket) {
-    
+
     onTCPConnection(ConnectionStatus.START);
 
     socket.on('data', onData);
     socket.on('end', ()=> onTCPConnection(ConnectionStatus.END));
     socket.on('error', err => console.log(`Error: ${err}`));
 });
+
+server.on('error', function tcpConnectionError(e){
+    console.error(e);
+})
 
 server.listen(TCP_PORT, ()=> console.log(`Server listening for tcp connection requests @ localhost:${TCP_PORT}\n`));
