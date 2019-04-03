@@ -11,9 +11,7 @@ const WebSocket = require('ws');
 const TCP_PORT = 3100;
 const WS_PORT = 3200;
 
-const server = new Net.Server({
-    allowHalfOpen: true
-});
+const server = new Net.Server();
 const wss = new WebSocket.Server({ port: WS_PORT });
 
 const ConnectionStatus = {
@@ -90,10 +88,12 @@ const onTCPConnection = (status)=>{
     if(status===ConnectionStatus.START){
         state.connections.tcp++;
         websocket.message('A new connection has been established.');
+        console.log('A new tcp connection has been established');
     }
     else if(status===ConnectionStatus.END){
         state.connections.tcp--;
        websocket.message('Closing connection with the client.');
+       console.log('Closing tcp connection with the client.');
     }
 
     sendConnectionStatus();
