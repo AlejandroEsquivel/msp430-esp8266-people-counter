@@ -3,7 +3,6 @@
 #define server "tcp.alejandroesquivel.com"
 #define port "3100"
 
-#define LED RED_LED
 
 
 #define ECHO_1 P2_0
@@ -17,15 +16,14 @@ int threshold = 40;
 int counter_1 = 0;
 int counter_2 = 0;
 
-unsigned long people_measure_start = 0;
-unsigned long last_count_taken = 0;
+int state = -1;
+int prev_state = -1;
 
-int allow_double_measurement = 0;
-
-int previous_count = 0;
-int count = 0;
+long last_measurement_taken = 0;
 
 int people = 0;
+
+int prev_people = 0;
 
 // P1_1 GREEN
 // P1_2 YELLOW
@@ -71,7 +69,8 @@ void setup() {
   delay(1000);
 
   //init pins
-  pinMode(LED, OUTPUT);   
+  pinMode(RED_LED, OUTPUT);
+  pinMode(GREEN_LED, OUTPUT);
   pinMode(TRIG_1, OUTPUT);
   pinMode(TRIG_2, OUTPUT);
   pinMode(ECHO_1, INPUT);
@@ -79,7 +78,7 @@ void setup() {
 
   runtimeConfig();
   connectTcp();
-  digitalWrite(LED,HIGH); // Turn on RED light when ready
+  digitalWrite(GREEN_LED, HIGH); // Turn on RED light when ready
 }
 
 void trigger(int TRIG_PIN) {
@@ -131,92 +130,87 @@ double takeMeasurement(int TRIG_PIN, int ECHO_PIN) {
 
 // the loop routine runs over and over again forever:
 void loop() {
+  
   double d1 = takeMeasurement(TRIG_1, ECHO_1);
   double d2 = takeMeasurement(TRIG_2, ECHO_2);
 
-  /*Serial.print("Distance 1: ");
-  Serial.print(d1);
-  Serial.print(" | ");
-  Serial.println(counter_1);
-  Serial.print("Distance 2: ");
-  Serial.print(d2);
-  Serial.print(" | ");
-  Serial.println(counter_2);
-  Serial.print("People: ");
-  Serial.print(people);
-  Serial.print("\n");*/
+  digitalWrite(RED_LED, LOW);
 
-  if (allow_double_measurement == 1 || (d1 > threshold || d2 > threshold)) {
-
-    if (counter_1 == 0 && d1 <= threshold) {
+  if(state != 4){
+    if (d1 <= threshold) {
       counter_1 = 1;
-      last_count_taken = millis();
-      allow_double_measurement = 1;
-      if (counter_2 == 1) {
-        allow_double_measurement = 0;
-        people_measure_start = millis();
-        count--;
-
-      }
+      last_measurement_taken = millis();
     }
-
-    if (counter_2 == 0 && d2 <= threshold) {
+  
+    if (d2 <= threshold) {
       counter_2 = 1;
-      last_count_taken = millis();
-      allow_double_measurement = 1;
-      //raising edge
-      if (counter_1 == 1) {
-        allow_double_measurement = 0;
-        people_measure_start = millis();
-        count++;
-      }
+      last_measurement_taken = millis();
     }
-
-  }
-
-  //timeout of weird state
-  if (millis() - last_count_taken > 1000) {
-    last_count_taken = millis();
-    counter_1 = 0;
-    counter_2 = 0;
-  }
-
-  if (counter_2 == 1 && counter_1 == 1 && millis() - people_measure_start >= 250) {
-
-    /*Serial.print("Time elapsed: ");
-      Serial.print(millis() - people_measure_start);
-      Serial.println();*/
-
-    people_measure_start = 0;
-    if (count > previous_count) {
+  
+    if(counter_1 == 1 && counter_2 == 0){
+      state = 1;
+    }
+    else if(counter_1 == 0 && counter_2 ==1){
+      state = 2;
+    } else if(counter_1 == 1 && counter_2 ==1){
+      state = 3;
+    } else {
+      state = 0;
+    }
+  
+    if(state == 3 && prev_state == 1){
+      state = 4;
+      last_measurement_taken = millis();
       people++;
+    }
+    else if(state == 3 && prev_state == 2){
+      state = 4;
+      last_measurement_taken = millis();
+      people--;
+    }
+  
+  
+    //timeout of weird state
+    if (millis() - last_measurement_taken >= 500) {
+      last_measurement_taken = millis();
+      counter_1 = 0;
+      counter_2 = 0;
+      prev_state = state;
+      state = 0;
+    }
+    /*Serial.print("Prev state: ");
+    Serial.print(prev_state);
+    Serial.print(", State: ");
+    Serial.print(state);
+    Serial.print(", People:");
+    Serial.println(people);*/
+
+    prev_state = state;
+  }
+  else if (millis() - last_measurement_taken >= 250) {
+
+     digitalWrite(RED_LED, HIGH);
+
+    //Serial.println(people);
+    //Serial.print("People Count: ");
+    //Serial.println(people);
+
+    if(prev_people < people){
       sendMeasurement("+");
     }
-    else if (count < previous_count) {
-      people--;
+    else if(prev_people > people){
       sendMeasurement("-");
     }
 
-    if (people < 0) {
-      people = 0;
-    }
-
-    previous_count = count;
-
-    /*Serial.print("People: ");
-    Serial.print(people);
-    Serial.print("\n");
-    Serial.print("Count: ");
-    Serial.print(count);
-    Serial.print("\n");*/
-
-    people_measure_start = millis();
-
     counter_1 = 0;
     counter_2 = 0;
-
+    prev_state = state;
+    state = 0;
+    prev_people = people;
+    
+    last_measurement_taken = millis();
+    
   }
 
-  delay(50);
 
 }

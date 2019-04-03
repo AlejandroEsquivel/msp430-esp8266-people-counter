@@ -6,7 +6,7 @@ import serial # for serial port
 import numpy as np # for arrays, numerical processing
 
 #define the serial port. Pick one:
-port = "/dev/ttyACM0"  #for Linux
+port = "/dev/ttyACM1"  #for Linux
 
 #start our program proper:
 #open the serial port

@@ -1,7 +1,9 @@
 #include "msp430.h"
+/*
 #include <string.h>
 #include <stdlib.h>
 #include <stdio.h>
+*/
 
 #define TXD BIT2 // TXD on P1.2 (RX of ESP)
 #define RXD BIT1 // RXD on P1.1 (TX of ESP)
@@ -15,13 +17,29 @@
 #define RED_LED BIT0   // P1.0 LED
 #define GREEN_LED BIT6 // P1.6 LED
 
-#define WIFI_NETWORK_SSID "AE iPhone" 
-#define WIFI_NETWORK_PASS "guestpass" 
+#define WIFI_NETWORK_SSID "AE iPhone"
+#define WIFI_NETWORK_PASS "guestpass"
 
 #define TCP_SERVER "tcp.alejandroesquivel.com"
 #define TCP_PORT "3100"
 
 volatile unsigned int timer_reset_count = 0;
+
+
+int threshold = 40;
+
+int counter_1 = 0;
+int counter_2 = 0;
+
+int state = -1;
+int prev_state = -1;
+
+
+long last_measurement_taken = 0;
+
+signed int people = 0;
+signed int prev_people = 0;
+
 
 void wait_ms(unsigned int ms)
 {
@@ -35,15 +53,14 @@ void wait_ms(unsigned int ms)
 
 void wait_s(float s)
 {
-  wait_ms((int)(s*1000));
+  wait_ms((int)(s * 1000));
 }
-
-
 
 /* Write byte to USB-Serial interface */
 void write_uart_byte(char value)
 {
-  while (!(IFG2 & UCA0TXIFG));
+  while (!(IFG2 & UCA0TXIFG))
+    ;
   // wait for TX buffer to be ready for new data
   // UCA0TXIFG register will be truthy when available to recieve new data to computer.
   UCA0TXBUF = value;
@@ -59,21 +76,16 @@ void write_uart_string(char *str)
   }
 }
 
-void write_uart_int(unsigned int i){
-  char buf[sizeof(i) * 8 + 1];
-  sprintf(buf, "%d\n", i);
-  write_uart_string(buf);
-}
-
+/*
 void write_uart_long(unsigned long l)
 {
   char buf[sizeof(l) * 8 + 1];
   sprintf(buf, "%ld\n", l);
   write_uart_string(buf);
-}
+}*/
 
-
-void tx_end(float delay){
+void tx_end(float delay)
+{
   write_uart_string("\r\n");
   wait_s(delay);
 }
@@ -84,10 +96,10 @@ void tx(char *str, float delay)
   tx_end(delay);
 }
 
-void tx_partial(char *str){
+void tx_partial(char *str)
+{
   write_uart_string(str);
 }
-
 
 #if defined(__TI_COMPILER_VERSION__)
 #pragma vector = TIMER0_A0_VECTOR
@@ -96,20 +108,9 @@ __interrupt void ta1_isr(void)
 void __attribute__((interrupt(TIMER0_A0_VECTOR))) ta1_isr(void)
 #endif
 {
-  switch (TAIV)
-  {
-    //Timer overflow
-    case 10:
-      timer_reset_count++;
-    break;
-    //Otherwise Capture Interrupt
-    default:
-    // Read the CCI bit (ECHO signal) in CCTL0
-    break;
-  }
+  timer_reset_count++;
   TACTL &= ~CCIFG; // reset the interrupt flag
 }
-
 
 /* Setup UART */
 void init_uart(void)
@@ -132,8 +133,8 @@ void init_timer(void)
 {
   DCOCTL = 0;
   /* Use internal calibrated 1MHz clock: */
-  BCSCTL1 = CALBC1_1MHZ; 
-  DCOCTL = CALDCO_1MHZ;  
+  BCSCTL1 = CALBC1_1MHZ;
+  DCOCTL = CALDCO_1MHZ;
   BCSCTL2 &= ~(DIVS_3);
 
   // Stop timer before modifiying configuration
@@ -142,11 +143,9 @@ void init_timer(void)
   /* 
   1. Capture Rising & Falling edge of ECHO signal
   2. Sync with clock
-  3. Set Capture Input signal to CCI0A
-  4. Enable capture mode
   5. Enable interrupt
   */
-  CCTL0 |= CM_3 + SCS + CCIS_0 + CAP + CCIE;
+  CCTL0 |= CM_3 + SCS + CCIE;
   // Select SMCLK with no divisions, continous mode.
   TACTL |= TASSEL_2 + MC_2 + ID_0;
 }
@@ -157,9 +156,10 @@ void reset_timer(void)
   TACTL |= TACLR;
 }
 
-void esp_flash_config() {
+void esp_flash_config()
+{
   //  Flash Wifi-Mode: As client
-  tx("AT+CWMODE_DEF=1",2); 
+  tx("AT+CWMODE_DEF=1", 2);
   // Flash ssid credentials
   tx_partial("AT+CWJAP_DEF=\"");
   tx_partial(WIFI_NETWORK_SSID);
@@ -169,33 +169,41 @@ void esp_flash_config() {
   tx_end(20);
 }
 
-void esp_runtime_config(void) {
-  tx("ATE0",1); // Disable echo
-  tx("AT+CIPMUX=0",1); // Single-Connection Mode
+void esp_runtime_config(void)
+{
+  tx("ATE0", 1);        // Disable echo
+  tx("AT+CIPMUX=0", 1); // Single-Connection Mode
 }
 
-void tcp_connect(void){
-   tx_partial("AT+CIPSTART=\"TCP\",\"");  // Establish TCP connection
-   tx_partial(TCP_SERVER);
-   tx_partial("\",");
-   tx_partial(TCP_PORT);
-   tx_end(10);
+void tcp_connect(void)
+{
+  tx_partial("AT+CIPSTART=\"TCP\",\""); // Establish TCP connection
+  tx_partial(TCP_SERVER);
+  tx_partial("\",");
+  tx_partial(TCP_PORT);
+  tx_end(10);
 }
 
-
-void send_measurement(char* data) {
-  tx("AT+CIPSEND=1",1); // prepare to send x byte
-  tx(data,0);
+unsigned long millis(void)
+{
+  return TAR;
 }
 
-unsigned long ultrasonic_measurement(int ECHO_PIN, int TRIG_PIN){
+void send_measurement(char *data)
+{
+  tx("AT+CIPSEND=1", 1); // prepare to send x byte
+  tx(data, 0);
+}
+
+unsigned long ultrasonic_measurement(int ECHO_PIN, int TRIG_PIN)
+{
 
   // Enable ultrasound pulses
-  P2OUT |= TRIG_PIN;  
+  P2OUT |= TRIG_PIN;
   // Send pulse for 10us
-  __delay_cycles(10); 
+  __delay_cycles(10);
   // Disable TRIGGER
-  P2OUT &= ~TRIG_PIN; 
+  P2OUT &= ~TRIG_PIN;
 
   unsigned int prev_echo_val = 0;
   unsigned int curr_echo_val;
@@ -205,33 +213,35 @@ unsigned long ultrasonic_measurement(int ECHO_PIN, int TRIG_PIN){
   unsigned long distance;
 
   while (1)
+  {
+    curr_echo_val = P2IN & ECHO_PIN;
+    // Rising edge
+    if (curr_echo_val > prev_echo_val)
     {
-      curr_echo_val = P2IN & ECHO_PIN;
-      // Rising edge
-      if (curr_echo_val > prev_echo_val)
-      {
-        reset_timer();
-        timer_reset_count = 0;
-        start_time = TAR;
-      }
-      // Falling edge
-      else if (curr_echo_val < prev_echo_val)
-      {
-        end_time = TAR + (timer_reset_count * 0xFFFF);
-        distance = (unsigned long)((end_time - start_time) / 0.00583090379);
-
-        //only accept values within HC-SR04 acceptible measure ranges
-        if (distance / 10000 >= 2.0 && distance / 10000 <= 400)
-        {
-          return distance;
-        }
-        else {
-          return -1;
-        }
-      }
-      prev_echo_val = curr_echo_val;
+      reset_timer();
+      timer_reset_count = 0;
+      start_time = TAR;
     }
+    // Falling edge
+    else if (curr_echo_val < prev_echo_val)
+    {
+      end_time = TAR + (timer_reset_count * 0xFFFF);
+      distance = (unsigned long)((end_time - start_time) / 58);
+
+      //only accept values within HC-SR04 acceptible measure ranges
+      if (distance >= 2.0 && distance <= 400)
+      {
+        return distance;
+      }
+      else
+      {
+        return -1;
+      }
+    }
+    prev_echo_val = curr_echo_val;
+  }
 }
+
 
 void main(void)
 {
@@ -256,13 +266,11 @@ void main(void)
 
   wait_ms(500);
 
-  P1OUT |= RED_LED;
-
   // need to run only once
   //esp_flash_config();
 
-  //esp_runtime_config();
-  //tcp_connect();
+  esp_runtime_config();
+  tcp_connect();
 
   //sendMeasurement("!");
 
@@ -271,108 +279,120 @@ void main(void)
   unsigned long d1;
   unsigned long d2;
 
-  unsigned long now;
-
-  unsigned int threshold = 40;
-
-  unsigned int counter_1 = 0;
-  unsigned int counter_2 = 0;
-
-  unsigned long people_measure_start = 0;
-  unsigned long last_count_taken = 0;
-
-  unsigned int allow_double_measurement = 0;
-
-  unsigned int previous_count = 0;
-  unsigned int count = 0;
-
-  unsigned long people = 0;
-
   while (1)
   {
+    // 1 then 2 means to the right (rel. to facing the front of board [closest to ultrasound sensors])
     d1 = ultrasonic_measurement(ECHO_1, TRIG_1);
     d2 = ultrasonic_measurement(ECHO_2, TRIG_2);
 
-    now = TAR / 1000; //miliseconds
+    P1OUT &= ~(RED_LED);
 
-  
-    if (allow_double_measurement == 1 || (d1 > threshold || d2 > threshold))
+    if (state != 4)
     {
-
-      if (counter_1 == 0 && d1 <= threshold)
+      if (d1 <= threshold)
       {
         counter_1 = 1;
-        last_count_taken = now;
-        allow_double_measurement = 1;
-        if (counter_2 == 1)
-        {
-          allow_double_measurement = 0;
-          people_measure_start = now;
-          count--;
-        }
+        reset_timer();
       }
 
-      if (counter_2 == 0 && d2 <= threshold)
+      if (d2 <= threshold)
       {
         counter_2 = 1;
-        last_count_taken = now;
-        allow_double_measurement = 1;
-        //raising edge
-        if (counter_1 == 1)
-        {
-          allow_double_measurement = 0;
-          people_measure_start = now;
-          count++;
-        }
+        reset_timer();
       }
-    }
 
-    //edge case where one sensor triggered, but second one not triggered
-    if (now - last_count_taken > 1000) {
-      last_count_taken = now;
-      counter_1 = 0;
-      counter_2 = 0;
-    }
-
-    if (counter_2 == 1 && counter_1 == 1 && now - people_measure_start >= 250)
-    {
-
-      people_measure_start = 0;
-
-      if (count > previous_count)
+      if (counter_1 == 1 && counter_2 == 0)
       {
+        state = 1;
+      }
+      else if (counter_1 == 0 && counter_2 == 1)
+      {
+        state = 2;
+      }
+      else if (counter_1 == 1 && counter_2 == 1)
+      {
+        state = 3;
+      }
+      else
+      {
+        state = 0;
+      }
+
+      if (state == 3 && prev_state == 1)
+      {
+        state = 4;
+        reset_timer();
         people++;
-        //send_measurement("+");
       }
-      else if (count < previous_count)
+      else if (state == 3 && prev_state == 2)
       {
+        state = 4;
+        reset_timer();
         people--;
-        //send_measurement("-");
       }
 
-      if (people < 0)
+
+      //timeout of weird state
+      if ( millis() >= 15000)
       {
-        people = 0;
+        reset_timer();
+        timer_reset_count = 0;
+        last_measurement_taken = millis();
+
+        counter_1 = 0;
+        counter_2 = 0;
+        prev_state = state;
+        state = 0;
       }
+      
+      /*
+      switch (state)
+      {
+      case 0:
+        write_uart_string("0\n");
+        break;
+      case 1:
+        write_uart_string("1\n");
+        break;
+      case 2:
+        write_uart_string("2\n");
+        break;
+      case 3:
+        write_uart_string("3\n");
+        break;
+      case 4:
+        write_uart_string("4\n");
+        break;
+      }*/
 
-      previous_count = count;
+      prev_state = state;
+    }
+    else {
 
-      write_uart_string("people: ");
-      write_uart_long(people);
+      P1OUT |= RED_LED;
 
-      /*Serial.print("People: ");
-      Serial.print(people);
-      Serial.print("\n");
-      Serial.print("Count: ");
-      Serial.print(count);
-      Serial.print("\n");*/
+      //Serial.println(people);
+      //Serial.print("People Count: ");
+      //Serial.println(people);
 
-      people_measure_start = now;
+      if(prev_people < people){
+        send_measurement("+");
+      }
+      else if(prev_people > people){
+        send_measurement("-");
+      }
 
       counter_1 = 0;
       counter_2 = 0;
+      prev_state = state;
+      state = 0;
+
+      prev_people = 0;
+      people = 0;
+      
+      reset_timer();
+      timer_reset_count = 0;
+      last_measurement_taken = millis();
     }
-  
-    wait_ms(50);
   }
 }
