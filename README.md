@@ -1,8 +1,21 @@
 # Wi-Fi Connected People Counter
 
-A wi-fi connected people counter, implemented with a pair of ultrasonic transducers, the TI MSP430G2553 microcontroller and the ESP8266 ESP-01 Wi-Fi module. 
 
-# Explanation
+This project essentially allows one to place a device near a door to count how many people come in and out of particular place. 
+
+It is implemented with a pair of ultrasonic transducers, the TI MSP430G2553 microcontroller and the ESP8266 ESP-01 Wi-Fi module. 
+
+## Server
+
+Estblishes a TCP connection from the ESP8266 ESP-01 Wi-Fi module which recieves one of two signals +1 or -1 depending on whether someone walks in or out from a store respectively.
+
+It broadcasts these signals to any connected Websocket clients
+
+## Browser Frontend
+
+Establishes connection with the above Websocket server to recieve +1 or -1 signals, and renders a plot showing the near real-time volume of people within a particular place.
+
+# Explanation of Firmware
 
 ## Timer
 
