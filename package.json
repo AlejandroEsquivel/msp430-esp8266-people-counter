@@ -42,7 +42,7 @@
   },
   "dependencies": {
     "app-root-path": "^2.2.1",
-    "express": "^4.16.4",
+    "express": "^4.17.3",
     "ws": "^6.2.1"
   }
 }
